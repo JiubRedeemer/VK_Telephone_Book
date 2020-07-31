@@ -141,26 +141,29 @@ class Avito(object):
 
     @staticmethod
     def vk_avito_parse(number):
-        avito_answer = ""
-        res = requests.get("https://mirror.bullshit.agency/search_by_phone/" + str(number))
-        b = bs4.BeautifulSoup(res.text, "html.parser")
-        title = b.find('title')
-        if "Нет объявлений по телефону" in title.string:
-            return title.string
-        a = b.find_all(href=True, rel="nofollow")[0]['href']
-        resn = requests.get("https://mirror.bullshit.agency" + str(a))
-        n = bs4.BeautifulSoup(resn.text, "html.parser")
-        name = n.select('strong')[0].getText()
-        t = b.select('h4')
-        p = b.select('p')
-        for i in range(len(t)):
-            avito_number = str(i + 1) + "\n"
-            avito_name = t[i].getText()
-            avito_address = p[i].select('span')[0].getText()
-            avito_date = p[i].select('span')[1].getText()
-            avito_answer = avito_answer + "\n" + "Объявление " + avito_number + "\nНазвание : " + avito_name + "\nАдрес : " + avito_address + "\nДата : " + avito_date
-        return avito_answer
-
+        try:
+            avito_answer = ""
+            res = requests.get("https://mirror.bullshit.agency/search_by_phone/" + str(number))
+            b = bs4.BeautifulSoup(res.text, "html.parser")
+            title = b.find('title')
+            print(title.string)
+            if "Нет объявлений по телефону" or "Bad gateway" in title.string:
+                return "Объявления Авито не найдены или ошибка работы сервиса"
+            a = b.find_all(href=True, rel="nofollow")[0]['href']
+            resn = requests.get("https://mirror.bullshit.agency" + str(a))
+            n = bs4.BeautifulSoup(resn.text, "html.parser")
+            name = n.select('strong')[0].getText()
+            t = b.select('h4')
+            p = b.select('p')
+            for i in range(len(t)):
+                avito_number = str(i + 1) + "\n"
+                avito_name = t[i].getText()
+                avito_address = p[i].select('span')[0].getText()
+                avito_date = p[i].select('span')[1].getText()
+                avito_answer = avito_answer + "\n" + "Объявление " + avito_number + "\nНазвание : " + avito_name + "\nАдрес : " + avito_address + "\nДата : " + avito_date
+            return avito_answer
+        except:
+            return "Ошибка поиска Авито"
 
 class Handler(object):  # Внутрь передается команда пользователя
     number = 0  # номер телефона
@@ -238,7 +241,7 @@ class Handler(object):  # Внутрь передается команда по�
 
 
 class VK(object):
-    group_id = "196560906"
+    group_id = group
     vk_session = vk_api.VkApi(
         token=vk_token)
     longpoll = VkBotLongPoll(vk_session, group_id)
@@ -250,7 +253,7 @@ class VK(object):
 
     def send_message(self, event, msg_text):
         self.vk.messages.send(
-            user_id=event.obj['message']['from_id'],
+            user_id=event.obj['from_id'],
             random_id=get_random_id(),
             message=msg_text,
         )
@@ -258,15 +261,17 @@ class VK(object):
 
     def parser(self):
         for event in self.longpoll.listen():
-            if event.type == VkBotEventType.MESSAGE_NEW and event.obj['message']['text'] != '':
-                print(event.obj['message']['from_id'])
-                print(event)
-                self.send_message(event, Handler(event.obj['message']['text']).result())
+            if event.type == VkBotEventType.MESSAGE_NEW and event.obj['text'] != '':
+                #print(event.obj)
+                #print(event)
+                self.send_message(event, Handler(event.obj['text']).result())
 
 
 if __name__ == "__main__":
-    user = VK()
-    user.parser()
-
+    try:
+        user = VK()
+        user.parser()
+    except:
+        pass
 # Организовал получение сообщений от вк
 # todo обработку сообщений, разобраться с апи фотографий и кнопок
